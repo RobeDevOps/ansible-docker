@@ -1,0 +1,42 @@
+---
+- name: Verify docker-ce repository exists
+  stat:
+    path: /etc/yum.repos.d/docker-ce.repo
+  register: repo_available
+
+- name: add docker-ce repository
+  command: yum-config-manager --add-repo {{ docker_repository }}
+  register: repo_added
+  when: not repo_available.stat.exists
+
+- name: Load Packages for {{ ansible_distribution }}
+  include_vars: "{{ item }}"
+  with_first_found:
+    - "{{ ansible_distribution }}.yaml"
+    - default.yaml
+
+- name: Install {{ docker_version }} & packages
+  yum:
+    name:
+      - "{{ docker_version }}"
+      - yum-utils
+      - lvm2
+      - device-mapper-persistent-data
+    state: present
+  when: repo_available.stat.exists or repo_added is success
+
+- name: Docker deamon directory
+  file:
+    path: /etc/docker
+    state: directory
+
+- name: Configure docker daemon 
+  template:
+    src: daemon.json.j2
+    dest: /etc/docker/daemon.json
+  notify: restart docker
+
+- name: Ensure docker is running
+  systemd:
+    name: docker
+    state: started
