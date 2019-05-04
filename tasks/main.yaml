@@ -23,7 +23,9 @@
       - lvm2
       - device-mapper-persistent-data
     state: present
-  when: repo_available.stat.exists or repo_added is success
+  when:
+    - not ansible_check_mode
+    - repo_available.stat.exists or repo_added is success
 
 - name: Docker deamon directory
   file:
